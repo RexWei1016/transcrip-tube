@@ -9,7 +9,44 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TOOL_DIR = os.path.join(BASE_DIR, "tool")
 FFMPEG_PATH = os.path.join(TOOL_DIR, "ffmpeg.exe")
 
+def process_full_audio(segments, duration_ms):
+    """處理完整音訊（不抽樣）"""
+    combined = AudioSegment.empty()
+    segment_offset_map = []
+    current_ms = 0
+
+    for seg in segments:
+        seg_len = len(seg["audio"])
+        segment_offset_map.append({
+            "new_start_ms": current_ms,
+            "new_end_ms": current_ms + seg_len,
+            "original_start_ms": seg["start_ms"],
+            "original_end_ms": seg["end_ms"]
+        })
+        combined += seg["audio"]
+        current_ms += seg_len
+
+    # 匯出為中繼 wav
+    wav_path = SAMPLED_AUDIO_FILE.replace(".mp3", ".wav")
+    print(f"🎧 匯出完整 WAV：{wav_path}")
+    combined.export(wav_path, format="wav")
+
+    # 用 ffmpeg 轉成 mp3
+    print(f"🎧 使用 ffmpeg 轉為 MP3：{SAMPLED_AUDIO_FILE}")
+    try:
+        subprocess.run([
+            FFMPEG_PATH, "-y", "-i", wav_path,
+            "-codec:a", "libmp3lame", SAMPLED_AUDIO_FILE
+        ], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"✅ 完整音訊匯出完成：{SAMPLED_AUDIO_FILE}")
+    except subprocess.CalledProcessError as e:
+        print("❌ ffmpeg 轉 mp3 錯誤：")
+        print(e.stderr.decode())
+        raise RuntimeError("MP3 匯出失敗")
+    return SAMPLED_AUDIO_FILE, segment_offset_map
+
 def sample_segments(segments, duration_ms):
+    """抽樣處理音訊"""
     target_duration = int(duration_ms * SAMPLE_PORTION)
     per_part = target_duration // 3
     total = len(segments)
@@ -25,10 +62,6 @@ def sample_segments(segments, duration_ms):
     for label, part in parts.items():
         selected_segments += random_sample(part, label, per_part)
 
-    # 合併成一段音訊
-    # combined = AudioSegment.empty()
-    # for seg in selected_segments:
-    #     combined += seg["audio"]
     combined = AudioSegment.empty()
     segment_offset_map = []
     current_ms = 0
@@ -62,7 +95,6 @@ def sample_segments(segments, duration_ms):
         print(e.stderr.decode())
         raise RuntimeError("MP3 匯出失敗")
     return SAMPLED_AUDIO_FILE, segment_offset_map
-
 
 def random_sample(partition, label, duration_ms):
     num_chunks = duration_ms // SEGMENT_LEN_MS

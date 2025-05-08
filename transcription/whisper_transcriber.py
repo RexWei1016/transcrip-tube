@@ -2,6 +2,8 @@ import whisper
 from tqdm import tqdm
 from utils.time_utils import format_time
 from config import SEGMENT_LEN_MS
+import os
+from datetime import datetime
 
 def transcribe_with_original_time(mp3_path, segment_offset_map):
     model = whisper.load_model("base")
@@ -59,8 +61,18 @@ def map_whisper_segments_to_original(result, segment_offset_map):
     # ✅ 按照「原始時間」排序
     mapped_segments.sort(key=lambda x: x["original_start"])
 
+    # 生成輸出檔案名稱（使用時間戳記）
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"transcription_{timestamp}.txt"
+    
+    print(f"\n📋 轉錄結果已保存至：{output_file}")
     print("📋 含【原始音訊時間】的轉錄結果如下（已排序）：\n")
-    for seg in mapped_segments:
-        start_str = format_time(seg["original_start"])
-        end_str = format_time(seg["original_end"])
-        print(f"[原始時間 {start_str} - {end_str}] {seg['text']}")
+
+    # 同時輸出到檔案和終端機
+    with open(output_file, "w", encoding="utf-8") as f:
+        for seg in mapped_segments:
+            start_str = format_time(seg["original_start"])
+            end_str = format_time(seg["original_end"])
+            line = f"[原始時間 {start_str} - {end_str}] {seg['text']}"
+            print(line)  # 輸出到終端機
+            f.write(line + "\n")  # 寫入檔案
