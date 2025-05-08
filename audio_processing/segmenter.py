@@ -12,12 +12,15 @@ FFMPEG_PATH = os.path.join(TOOL_DIR, "ffmpeg.exe")
 if not os.path.isfile(FFMPEG_PATH):
     raise FileNotFoundError(f"❌ 找不到 ffmpeg 執行檔: {FFMPEG_PATH}")
 
-# 3️⃣ 將 MP3 轉換成 WAV 格式
-def convert_mp3_to_wav(input_path: str) -> str:
+# 3️⃣ 將音訊轉換成 WAV 格式
+def convert_to_wav(input_path: str) -> str:
     if not os.path.exists(input_path):
-        raise FileNotFoundError(f"❌ 找不到 MP3 檔案: {input_path}")
+        raise FileNotFoundError(f"❌ 找不到音訊檔案: {input_path}")
 
-    output_path = input_path.replace(".mp3", ".wav")
+    # 取得檔案名稱（不含副檔名）
+    file_name = os.path.splitext(input_path)[0]
+    output_path = f"{file_name}.wav"
+    
     if os.path.exists(output_path):
         os.remove(output_path)
 
@@ -40,7 +43,7 @@ def convert_mp3_to_wav(input_path: str) -> str:
 # 4️⃣ 將音訊切成片段
 def split_audio(file_path: str):
     print(f"🎧 開始切割音訊：{file_path}")
-    wav_path = convert_mp3_to_wav(file_path)
+    wav_path = convert_to_wav(file_path)
 
     try:
         audio = AudioSegment.from_wav(wav_path)
